@@ -79,8 +79,7 @@
     <p>photo log</p>
   </header>
 
-  {{/* Collect all images from static/images/ */}}
-  {{ $images := resources.Match "images/*" }}
+  {{ $images := resources.Match "images/*.{jpg,jpeg,png,gif,webp,avif,JPG,JPEG,PNG}" }}
   {{ if $images }}
   <div class="grid">
     {{ range $images }}

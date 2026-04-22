@@ -24,6 +24,17 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
+      - name: Append .jpeg to extensionless photos
+        run: |
+          shopt -s nullglob
+          for f in static/images/*; do
+            base="$(basename "$f")"
+            [[ "$base" == .* ]] && continue
+            [[ "$base" == *.* ]] && continue
+            mv -- "$f" "$f.jpeg"
+            echo "renamed $f -> $f.jpeg"
+          done
+
       - name: Build
         run: hugo --minify
 

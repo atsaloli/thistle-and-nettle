@@ -25,10 +25,12 @@ jobs:
           extended: true
 
       - name: Install image tools
-        run: sudo apt-get update && sudo apt-get install -y libheif-examples imagemagick
+        run: sudo apt-get update && sudo apt-get install -y libvips-tools
 
       - name: Normalize photos to browser-friendly JPEG
+        shell: bash
         run: |
+          set +e
           shopt -s nullglob
           for f in static/images/*; do
             base="$(basename "$f")"
@@ -37,26 +39,17 @@ jobs:
             stem="${base%.*}"
             [[ "$base" != *.* ]] && stem="$base"
             out="static/images/${stem}.jpg"
-            case "$mime" in
-              image/heic|image/heif)
-                heif-convert -q 90 "$f" "$out"
-                [[ "$f" != "$out" ]] && rm -- "$f"
-                echo "converted HEIC: $base -> ${stem}.jpg"
-                ;;
-              image/jpeg)
-                [[ "$f" != "$out" ]] && mv -- "$f" "$out"
-                echo "kept JPEG: $base -> ${stem}.jpg"
-                ;;
-              image/png|image/webp|image/gif)
-                magick "$f" "$out"
-                [[ "$f" != "$out" ]] && rm -- "$f"
-                echo "converted ${mime}: $base -> ${stem}.jpg"
-                ;;
-              *)
-                echo "skipping $base (unsupported MIME: $mime)"
-                ;;
-            esac
+            tmp="static/images/.tmp.${stem}.jpg"
+            if vips copy "$f" "${tmp}[Q=90]"; then
+              mv -f -- "$tmp" "$out"
+              [[ "$f" != "$out" && -f "$f" ]] && rm -f -- "$f"
+              echo "converted ($mime): $base -> ${stem}.jpg"
+            else
+              rm -f -- "$tmp"
+              echo "FAILED ($mime): $base — leaving original in place"
+            fi
           done
+          exit 0
 
       - name: Build
         run: hugo --minify

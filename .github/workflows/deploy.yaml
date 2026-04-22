@@ -24,15 +24,38 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      - name: Append .jpeg to extensionless photos
+      - name: Install image tools
+        run: sudo apt-get update && sudo apt-get install -y libheif-examples imagemagick
+
+      - name: Normalize photos to browser-friendly JPEG
         run: |
           shopt -s nullglob
           for f in static/images/*; do
             base="$(basename "$f")"
             [[ "$base" == .* ]] && continue
-            [[ "$base" == *.* ]] && continue
-            mv -- "$f" "$f.jpeg"
-            echo "renamed $f -> $f.jpeg"
+            mime="$(file -b --mime-type "$f")"
+            stem="${base%.*}"
+            [[ "$base" != *.* ]] && stem="$base"
+            out="static/images/${stem}.jpg"
+            case "$mime" in
+              image/heic|image/heif)
+                heif-convert -q 90 "$f" "$out"
+                [[ "$f" != "$out" ]] && rm -- "$f"
+                echo "converted HEIC: $base -> ${stem}.jpg"
+                ;;
+              image/jpeg)
+                [[ "$f" != "$out" ]] && mv -- "$f" "$out"
+                echo "kept JPEG: $base -> ${stem}.jpg"
+                ;;
+              image/png|image/webp|image/gif)
+                magick "$f" "$out"
+                [[ "$f" != "$out" ]] && rm -- "$f"
+                echo "converted ${mime}: $base -> ${stem}.jpg"
+                ;;
+              *)
+                echo "skipping $base (unsupported MIME: $mime)"
+                ;;
+            esac
           done
 
       - name: Build

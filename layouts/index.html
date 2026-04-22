@@ -79,13 +79,19 @@
     <p>photo log</p>
   </header>
 
-  {{ $images := resources.Match "images/*.{jpg,jpeg,png,gif,webp,avif,JPG,JPEG,PNG}" }}
+  {{ $exts := slice ".jpg" ".jpeg" ".png" ".gif" ".webp" ".avif" }}
+  {{ $images := slice }}
+  {{ range (os.ReadDir "static/images") }}
+    {{ if and (not .IsDir) (in $exts (lower (path.Ext .Name))) (gt .Size 0) }}
+      {{ $images = $images | append .Name }}
+    {{ end }}
+  {{ end }}
   {{ if $images }}
   <div class="grid">
     {{ range $images }}
     <figure>
-      <img src="{{ .RelPermalink }}" loading="lazy" alt="{{ .Name }}">
-      <figcaption>{{ .Name }}</figcaption>
+      <img src="{{ printf "images/%s" . | relURL }}" loading="lazy" alt="{{ . }}">
+      <figcaption>{{ . }}</figcaption>
     </figure>
     {{ end }}
   </div>

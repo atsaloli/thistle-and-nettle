@@ -24,32 +24,40 @@ jobs:
           hugo-version: 'latest'
           extended: true
 
-      - name: Install image tools
-        run: sudo apt-get update && sudo apt-get install -y libvips-tools
+      - name: Install Python image tools
+        run: pip install --quiet pillow pillow-heif
 
       - name: Normalize photos to browser-friendly JPEG
         shell: bash
         run: |
-          set +e
-          shopt -s nullglob
-          for f in static/images/*; do
-            base="$(basename "$f")"
-            [[ "$base" == .* ]] && continue
-            mime="$(file -b --mime-type "$f")"
-            stem="${base%.*}"
-            [[ "$base" != *.* ]] && stem="$base"
-            out="static/images/${stem}.jpg"
-            tmp="static/images/.tmp.${stem}.jpg"
-            if vips copy "$f" "${tmp}[Q=90]"; then
-              mv -f -- "$tmp" "$out"
-              [[ "$f" != "$out" && -f "$f" ]] && rm -f -- "$f"
-              echo "converted ($mime): $base -> ${stem}.jpg"
-            else
-              rm -f -- "$tmp"
-              echo "FAILED ($mime): $base — leaving original in place"
-            fi
-          done
-          exit 0
+          python3 - <<'PY'
+          import os
+          from PIL import Image
+          import pillow_heif
+
+          pillow_heif.register_heif_opener()
+
+          src_dir = "static/images"
+          for name in sorted(os.listdir(src_dir)):
+              if name.startswith("."):
+                  continue
+              path = os.path.join(src_dir, name)
+              if not os.path.isfile(path):
+                  continue
+              if os.path.getsize(path) == 0:
+                  print(f"skipping {name}: 0 bytes")
+                  continue
+              stem = name.rsplit(".", 1)[0] if "." in name else name
+              out_path = os.path.join(src_dir, f"{stem}.jpg")
+              try:
+                  with Image.open(path) as img:
+                      img.convert("RGB").save(out_path, "JPEG", quality=90, optimize=True)
+                  if path != out_path and os.path.exists(path):
+                      os.remove(path)
+                  print(f"converted: {name} -> {stem}.jpg")
+              except Exception as e:
+                  print(f"FAILED: {name}: {e}")
+          PY
 
       - name: Build
         run: hugo --minify

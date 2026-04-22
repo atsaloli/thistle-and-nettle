@@ -48,13 +48,13 @@ jobs:
                   print(f"skipping {name}: 0 bytes")
                   continue
               stem = name.rsplit(".", 1)[0] if "." in name else name
-              out_path = os.path.join(src_dir, f"{stem}.jpg")
+              out_path = os.path.join(src_dir, f"{stem}.webp")
               try:
                   with Image.open(path) as img:
-                      img.convert("RGB").save(out_path, "JPEG", quality=90, optimize=True)
+                      img.convert("RGB").save(out_path, "WEBP", quality=85, method=6)
                   if path != out_path and os.path.exists(path):
                       os.remove(path)
-                  print(f"converted: {name} -> {stem}.jpg")
+                  print(f"converted: {name} -> {stem}.webp")
               except Exception as e:
                   print(f"FAILED: {name}: {e}")
           PY
